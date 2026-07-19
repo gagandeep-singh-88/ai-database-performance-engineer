@@ -11,7 +11,7 @@ in plain English, and generates actionable optimization reports.
 │  React SPA │────▶│  Spring Boot API │────▶│  PostgreSQL │  (app database, Cloud SQL)
 │  MUI + TS  │     │  Java 21         │     └─────────────┘
 │ (Cloud Run)│     │  (Cloud Run)     │────▶ Target PostgreSQL DBs (read-only, monitored)
-└────────────┘     │                  │────▶ Claude API (AI analysis)
+└────────────┘     │                  │────▶ Claude/Gemini API (AI analysis)
                    └──────────────────┘────▶ Google Secret Manager (DB credentials)
 ```
 
@@ -215,10 +215,10 @@ hotspots, slow queries, temp spill), each returned as a visible factor.
 
 ## API (Module 4)
 
-| Method | Endpoint                        | Auth   | Description                                          |
-|--------|---------------------------------|--------|------------------------------------------------------|
-| POST   | `/api/v1/analyzer/analyze`      | bearer | AI analysis of SQL and/or EXPLAIN output. With a `connectionId`, the backend runs EXPLAIN on the target (read-only) and grounds Claude with real index definitions + table statistics |
-| GET    | `/api/v1/analyzer/history`      | bearer | Past analyses (kept for the Module 7 report)         |
-| GET    | `/api/v1/analyzer/{id}`         | bearer | Full stored analysis                                 |
+| Method | Endpoint                        | Auth   | Description                                                                                                                                                                       |
+|--------|---------------------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| POST   | `/api/v1/analyzer/analyze`      | bearer | AI analysis of SQL and/or EXPLAIN output. With a `connectionId`, the backend runs EXPLAIN on the target (read-only) and grounds AI with real index definitions + table statistics |
+| GET    | `/api/v1/analyzer/history`      | bearer | Past analyses (kept for the Module 7 report)                                                                                                                                      |
+| GET    | `/api/v1/analyzer/{id}`         | bearer | Full stored analysis                                                                                                                                                              |
 
 Full interactive docs at `/swagger-ui.html`.
