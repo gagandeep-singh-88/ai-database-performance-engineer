@@ -15,14 +15,14 @@ in plain English, and generates actionable optimization reports.
                    └──────────────────┘────▶ Google Secret Manager (DB credentials)
 ```
 
-| Layer     | Tech                                                        |
-|-----------|-------------------------------------------------------------|
-| Frontend  | React 18, TypeScript, Material UI, Vite                     |
-| Backend   | Java 21, Spring Boot 3.5, Spring Security (JWT), Spring AI  |
-| Database  | PostgreSQL 16, Flyway migrations                            |
-| AI        | Claude API                                                  |
-| Cloud     | Cloud Run, Cloud SQL, Secret Manager, Artifact Registry     |
-| CI/CD     | GitHub Actions, Docker                                      |
+| Layer     | Tech                                                      |
+|-----------|-----------------------------------------------------------|
+| Frontend  | React 18, TypeScript, Material UI, Vite                   |
+| Backend   | Java 21, Spring Boot 3.5, Spring Security (JWT), Spring AI |
+| Database  | PostgreSQL 16, Flyway migrations                          |
+| AI        | Claude/Gemini API                                   |
+| Cloud     | Cloud Run, Cloud SQL, Secret Manager, Artifact Registry   |
+| CI/CD     | GitHub Actions, Docker                                    |
 
 ## Module roadmap
 
@@ -32,7 +32,7 @@ in plain English, and generates actionable optimization reports.
 - [x] **Module 4 — Query Analyzer**: AI-powered analysis of SQL + EXPLAIN, live plan/schema grounding, optimized SQL, history
 - [x] **Module 5 — Health Dashboard**: explainable health score, trend charts, slow queries, missing-index candidates, AI recommendations
 - [x] **Module 6 — AI Copilot**: chat grounded in collected metrics — every turn is re-grounded in the latest snapshot + health score, with persisted sessions and suggested follow-ups
-- [x] **Module 7 — Optimization Report**: downloadable PDF — health score, Claude-written executive summary, prioritized SQL-ready action plan, top queries, table access patterns, and snapshot trend
+- [x] **Module 7 — Optimization Report**: downloadable PDF — health score, AI-written executive summary, prioritized SQL-ready action plan, top queries, table access patterns, and snapshot trend
 - [ ] **Module 8 — Settings**: allows users to manage their profile, database preferences, AI settings and privacy preferences
 
 ## Local development
@@ -204,10 +204,10 @@ A background scheduler also snapshots every registered connection every 5 minute
 
 ## API (Module 5)
 
-| Method | Endpoint                                              | Auth   | Description                                             |
-|--------|-------------------------------------------------------|--------|---------------------------------------------------------|
+| Method | Endpoint                                              | Auth   | Description                                                                         |
+|--------|-------------------------------------------------------|--------|-------------------------------------------------------------------------------------|
 | GET    | `/api/v1/connections/{id}/dashboard`                  | bearer | Health score + factors, latest snapshot, history series, rule-based recommendations |
-| POST   | `/api/v1/connections/{id}/dashboard/ai-recommendations` | bearer | Claude-generated recommendations from the latest snapshot |
+| POST   | `/api/v1/connections/{id}/dashboard/ai-recommendations` | bearer | AI-generated recommendations from the latest snapshot                               |
 
 The health score is rule-based and fully explainable: 100 minus documented penalties
 (cache hit ratio, blocked sessions, locks, deadlocks, idle-in-transaction, seq-scan
