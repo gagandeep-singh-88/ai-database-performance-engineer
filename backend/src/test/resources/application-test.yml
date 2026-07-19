@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:dbperf;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    secret: test-only-jwt-secret-0123456789abcdefghij
+    expiration-minutes: 60
+  cors:
+    allowed-origins: http://localhost:5173
+  secrets:
+    provider: local
+    local-encryption-key: test-encryption-key-0123456789
+  ai:
+    provider: auto
+    api-key: ""
+    gemini-api-key: ""
+    model: claude-opus-4-8
+    gemini-model: gemini-2.5-flash
+    ollama-base-url: http://localhost:11434
+    ollama-model: qwen2.5:1.5b
+    max-tokens: 16000
