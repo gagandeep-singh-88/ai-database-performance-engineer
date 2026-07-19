@@ -29,11 +29,11 @@ in plain English, and generates actionable optimization reports.
 - [x] **Module 1 — Authentication**: register / login / JWT, protected app shell
 - [x] **Module 2 — Database Connections**: add & test PostgreSQL targets, Secret Manager storage, read-only enforcement, demo target DB
 - [x] **Module 3 — Performance Collector**: pg_stat_statements / activity / locks / table-stats snapshots, background scheduler, history API
-- [x] **Module 4 — Query Analyzer**: Claude-powered analysis of SQL + EXPLAIN, live plan/schema grounding, optimized SQL, history
+- [x] **Module 4 — Query Analyzer**: AI-powered analysis of SQL + EXPLAIN, live plan/schema grounding, optimized SQL, history
 - [x] **Module 5 — Health Dashboard**: explainable health score, trend charts, slow queries, missing-index candidates, AI recommendations
 - [x] **Module 6 — AI Copilot**: chat grounded in collected metrics — every turn is re-grounded in the latest snapshot + health score, with persisted sessions and suggested follow-ups
 - [x] **Module 7 — Optimization Report**: downloadable PDF — health score, Claude-written executive summary, prioritized SQL-ready action plan, top queries, table access patterns, and snapshot trend
-- [ ] **Module 8 — Cloud deployment**: Cloud Run + GitHub Actions pipeline
+- [ ] **Module 8 — Settings**: allows users to manage their profile, database preferences, AI settings and privacy preferences
 
 ## Local development
 
