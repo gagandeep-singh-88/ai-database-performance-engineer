@@ -15,14 +15,14 @@ in plain English, and generates actionable optimization reports.
                    └──────────────────┘────▶ Google Secret Manager (DB credentials)
 ```
 
-| Layer     | Tech                                                      |
-|-----------|-----------------------------------------------------------|
-| Frontend  | React 18, TypeScript, Material UI, Vite                   |
+| Layer     | Tech                                                    |
+|-----------|---------------------------------------------------------|
+| Frontend  | React 18, TypeScript, Material UI, Vite                 |
 | Backend   | Java 21, Spring Boot 3.5, Spring Security (JWT), Spring AI |
-| Database  | PostgreSQL 16, Flyway migrations                          |
-| AI        | Claude/Gemini API                                   |
-| Cloud     | Cloud Run, Cloud SQL, Secret Manager, Artifact Registry   |
-| CI/CD     | GitHub Actions, Docker                                    |
+| Database  | PostgreSQL 16, Flyway migrations                        |
+| AI        | Claude/Gemini API                                 |
+| Cloud     | Cloud Run, Cloud SQL, Secret Manager, Artifact Registry |
+| CI/CD     | GitHub Actions, Docker                                  |
 
 ## Module roadmap
 
