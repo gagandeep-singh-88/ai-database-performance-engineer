@@ -26,7 +26,7 @@ public class AnalysisPromptBuilder {
             - Index recommendations must use CREATE INDEX CONCURRENTLY and name the index.
             - Estimate improvements honestly with ranges. If the plan includes actual timings, \
             anchor your estimates to them.
-            - Severity: HIGH = dominates query cost, MEDIUM = significarecomnt contributor, \
+            - Severity: HIGH = dominates query cost, MEDIUM = significant contributor, \
             LOW = minor, INFO = observation only.
             - If the query is already well-optimized, say so plainly — do not invent problems.""";
 
