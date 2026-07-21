@@ -1,5 +1,6 @@
 package com.dbperf.analyzer.service;
 
+import com.dbperf.privacy.domain.AiResponseStyle;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,6 +48,25 @@ public class AnalysisPromptBuilder {
                     .append(schemaContext.strip()).append("\n\n");
         }
         prompt.append("Analyze the above and produce your structured performance assessment.");
+        return prompt.toString();
+    }
+
+    /**
+     * Same as {@link #userPrompt(String, String, String)} plus the user's
+     * Settings &gt; AI &amp; Privacy preferences (response style, target length).
+     */
+    public String userPrompt(String sql, String plan, String schemaContext,
+                             AiResponseStyle style, int maxResponseLength) {
+        StringBuilder prompt = new StringBuilder(userPrompt(sql, plan, schemaContext));
+        prompt.append("\n\n## Response preferences\n");
+        if (style == AiResponseStyle.SIMPLE) {
+            prompt.append("- Write for a non-DBA: plain language, avoid jargon, explain any technical "
+                    + "term you must use.\n");
+        } else {
+            prompt.append("- Write for an experienced DBA: precise technical language is expected.\n");
+        }
+        prompt.append("- Keep the overall response under approximately ").append(maxResponseLength)
+                .append(" characters.");
         return prompt.toString();
     }
 }

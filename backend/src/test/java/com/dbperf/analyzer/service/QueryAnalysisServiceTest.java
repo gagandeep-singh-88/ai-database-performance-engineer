@@ -9,8 +9,10 @@ import com.dbperf.analyzer.repository.QueryAnalysisRepository;
 import com.dbperf.common.exception.InvalidRequestException;
 import com.dbperf.connection.service.ConnectionAccess;
 import com.dbperf.connection.service.TargetConnectionFactory;
+import com.dbperf.privacy.domain.PrivacySettings;
 import com.dbperf.privacy.dto.SanitizedPayload;
 import com.dbperf.privacy.dto.ValidationResult;
+import com.dbperf.privacy.service.PrivacySettingsService;
 import com.dbperf.privacy.service.SanitizationService;
 import com.dbperf.secrets.SecretStore;
 import com.dbperf.user.domain.Role;
@@ -54,6 +56,8 @@ class QueryAnalysisServiceTest {
     private CurrentUserService currentUserService;
     @Mock
     private SanitizationService sanitizationService;
+    @Mock
+    private PrivacySettingsService privacySettingsService;
 
     private QueryAnalysisService service;
 
@@ -61,7 +65,7 @@ class QueryAnalysisServiceTest {
     void setUp() {
         service = new QueryAnalysisService(ai, new AnalysisPromptBuilder(), schemaInspector,
                 connectionAccess, connectionFactory, secretStore, analysisRepository,
-                currentUserService, sanitizationService, new ObjectMapper());
+                currentUserService, sanitizationService, privacySettingsService, new ObjectMapper());
     }
 
     /** By default the privacy gate passes the payload through unchanged. */
@@ -70,6 +74,7 @@ class QueryAnalysisServiceTest {
                 .thenAnswer(invocation -> new SanitizedPayload(invocation.getArgument(2),
                         invocation.getArgument(3), invocation.getArgument(4),
                         List.of(), List.of(), List.of(), ValidationResult.clean()));
+        when(privacySettingsService.resolve(any())).thenReturn(PrivacySettings.builder().build());
     }
 
     private AiQueryAnalysis sampleAnalysis() {

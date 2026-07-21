@@ -14,4 +14,6 @@ public interface DatabaseConnectionRepository extends JpaRepository<DatabaseConn
     Optional<DatabaseConnection> findByIdAndUserId(UUID id, UUID userId);
 
     boolean existsByUserIdAndNameIgnoreCase(UUID userId, String name);
+
+    List<DatabaseConnection> findAllByMonitoringEnabledTrue();
 }

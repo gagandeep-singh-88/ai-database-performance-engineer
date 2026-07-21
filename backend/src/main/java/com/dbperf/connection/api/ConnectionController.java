@@ -4,6 +4,8 @@ import com.dbperf.connection.dto.ConnectionResponse;
 import com.dbperf.connection.dto.ConnectionTestResult;
 import com.dbperf.connection.dto.CreateConnectionRequest;
 import com.dbperf.connection.dto.TestConnectionRequest;
+import com.dbperf.connection.dto.UpdateConnectionRequest;
+import com.dbperf.connection.dto.UpdateMonitoringRequest;
 import com.dbperf.connection.service.ConnectionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -14,8 +16,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -60,6 +64,20 @@ public class ConnectionController {
     @Operation(summary = "Ad-hoc connectivity test before saving (nothing persisted)")
     public ResponseEntity<ConnectionTestResult> testAdhoc(@Valid @RequestBody TestConnectionRequest request) {
         return ResponseEntity.ok(connectionService.testAdhoc(request));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Edit a connection's details; password is optional (blank keeps the stored secret)")
+    public ResponseEntity<ConnectionResponse> update(@PathVariable UUID id,
+                                                      @Valid @RequestBody UpdateConnectionRequest request) {
+        return ResponseEntity.ok(connectionService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/monitoring")
+    @Operation(summary = "Enable or disable background monitoring for this connection")
+    public ResponseEntity<ConnectionResponse> setMonitoring(@PathVariable UUID id,
+                                                             @RequestBody UpdateMonitoringRequest request) {
+        return ResponseEntity.ok(connectionService.setMonitoring(id, request.enabled()));
     }
 
     @DeleteMapping("/{id}")

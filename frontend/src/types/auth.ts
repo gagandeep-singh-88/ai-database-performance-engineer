@@ -2,6 +2,7 @@ export interface UserResponse {
   id: string;
   email: string;
   fullName: string;
+  organization: string | null;
   role: string;
   createdAt: string;
 }

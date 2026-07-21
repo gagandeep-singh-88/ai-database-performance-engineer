@@ -27,7 +27,7 @@ public class MetricsCollectionScheduler {
 
     @Scheduled(fixedDelayString = "${app.collector.interval-ms:300000}", initialDelayString = "${app.collector.initial-delay-ms:60000}")
     public void collectAll() {
-        List<DatabaseConnection> connections = connectionRepository.findAll();
+        List<DatabaseConnection> connections = connectionRepository.findAllByMonitoringEnabledTrue();
         if (connections.isEmpty()) {
             return;
         }

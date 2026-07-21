@@ -8,6 +8,7 @@ import com.dbperf.connection.domain.SslMode;
 import com.dbperf.connection.dto.ConnectionResponse;
 import com.dbperf.connection.dto.ConnectionTestResult;
 import com.dbperf.connection.dto.CreateConnectionRequest;
+import com.dbperf.connection.dto.UpdateConnectionRequest;
 import com.dbperf.connection.repository.DatabaseConnectionRepository;
 import com.dbperf.secrets.SecretStore;
 import com.dbperf.user.domain.Role;
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -135,6 +137,56 @@ class ConnectionServiceTest {
         assertThat(result.success()).isFalse();
         assertThat(connection.getStatus()).isEqualTo(ConnectionStatus.UNREACHABLE);
         assertThat(connection.getLastError()).isEqualTo("connection refused");
+    }
+
+    @Test
+    void updateKeepsExistingSecretWhenPasswordBlank() {
+        UUID id = UUID.randomUUID();
+        DatabaseConnection connection = ownedConnection(id);
+        when(connectionAccess.requireOwned(id)).thenReturn(connection);
+        when(connectionRepository.existsByUserIdAndNameIgnoreCase(userId, "shop-renamed")).thenReturn(false);
+        when(connectionRepository.save(any(DatabaseConnection.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ConnectionResponse response = connectionService.update(id, new UpdateConnectionRequest(
+                "shop-renamed", "db2.example.com", 5433, "shop2", "monitor2", "", SslMode.REQUIRE));
+
+        assertThat(response.name()).isEqualTo("shop-renamed");
+        assertThat(response.host()).isEqualTo("db2.example.com");
+        assertThat(connection.getSecretRef()).isEqualTo("local:abc");
+        verify(secretStore, never()).store(anyString(), anyString());
+        verify(secretStore, never()).delete(anyString());
+    }
+
+    @Test
+    void updateRotatesSecretWhenPasswordProvided() {
+        UUID id = UUID.randomUUID();
+        DatabaseConnection connection = ownedConnection(id);
+        when(connectionAccess.requireOwned(id)).thenReturn(connection);
+        when(secretStore.store(anyString(), eq("new-password"))).thenReturn("local:new-secret");
+        when(connectionRepository.save(any(DatabaseConnection.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        connectionService.update(id, new UpdateConnectionRequest(
+                "shop", "db.example.com", 5432, "shop", "monitor", "new-password", null));
+
+        verify(secretStore).store(anyString(), eq("new-password"));
+        verify(secretStore).delete("local:abc");
+        assertThat(connection.getSecretRef()).isEqualTo("local:new-secret");
+    }
+
+    @Test
+    void setMonitoringTogglesFlag() {
+        UUID id = UUID.randomUUID();
+        DatabaseConnection connection = ownedConnection(id);
+        when(connectionAccess.requireOwned(id)).thenReturn(connection);
+        when(connectionRepository.save(any(DatabaseConnection.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ConnectionResponse response = connectionService.setMonitoring(id, false);
+
+        assertThat(response.monitoringEnabled()).isFalse();
+        assertThat(connection.isMonitoringEnabled()).isFalse();
     }
 
     @Test

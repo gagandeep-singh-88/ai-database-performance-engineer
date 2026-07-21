@@ -69,6 +69,10 @@ public class DatabaseConnection {
     @Column(name = "last_error")
     private String lastError;
 
+    @Column(name = "monitoring_enabled", nullable = false)
+    @Builder.Default
+    private boolean monitoringEnabled = true;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

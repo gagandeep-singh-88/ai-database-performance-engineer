@@ -7,6 +7,7 @@ import com.dbperf.connection.dto.ConnectionResponse;
 import com.dbperf.connection.dto.ConnectionTestResult;
 import com.dbperf.connection.dto.CreateConnectionRequest;
 import com.dbperf.connection.dto.TestConnectionRequest;
+import com.dbperf.connection.dto.UpdateConnectionRequest;
 import com.dbperf.connection.repository.DatabaseConnectionRepository;
 import com.dbperf.secrets.SecretStore;
 import com.dbperf.user.service.CurrentUserService;
@@ -84,6 +85,41 @@ public class ConnectionService {
     public ConnectionTestResult testAdhoc(TestConnectionRequest request) {
         return prober.probe(request.host().trim(), request.port(), request.databaseName().trim(),
                 request.username().trim(), request.password(), request.sslModeOrDefault());
+    }
+
+    @Transactional
+    public ConnectionResponse update(UUID id, UpdateConnectionRequest request) {
+        DatabaseConnection connection = requireOwned(id);
+        UUID userId = connection.getUserId();
+        String newName = request.name().trim();
+        if (!newName.equalsIgnoreCase(connection.getName())
+                && connectionRepository.existsByUserIdAndNameIgnoreCase(userId, newName)) {
+            throw new DuplicateResourceException("A connection named '%s' already exists".formatted(newName));
+        }
+
+        connection.setName(newName);
+        connection.setHost(request.host().trim());
+        connection.setPort(request.port());
+        connection.setDatabaseName(request.databaseName().trim());
+        connection.setUsername(request.username().trim());
+        connection.setSslMode(request.sslModeOrDefault());
+        if (request.hasNewPassword()) {
+            String oldSecretRef = connection.getSecretRef();
+            connection.setSecretRef(secretStore.store("dbconn-" + UUID.randomUUID(), request.password()));
+            secretStore.delete(oldSecretRef);
+        }
+        connection = connectionRepository.save(connection);
+        log.info("User {} updated connection {}", userId, connection.getId());
+        return ConnectionResponse.from(connection);
+    }
+
+    @Transactional
+    public ConnectionResponse setMonitoring(UUID id, boolean enabled) {
+        DatabaseConnection connection = requireOwned(id);
+        connection.setMonitoringEnabled(enabled);
+        connection = connectionRepository.save(connection);
+        log.info("User {} set monitoring={} for connection {}", connection.getUserId(), enabled, id);
+        return ConnectionResponse.from(connection);
     }
 
     @Transactional

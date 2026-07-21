@@ -45,6 +45,24 @@ public class PrivacySettingsService {
         if (request.aiEnabled() != null) {
             settings.setAiEnabled(request.aiEnabled());
         }
+        if (request.payloadValidationEnabled() != null) {
+            settings.setPayloadValidationEnabled(request.payloadValidationEnabled());
+        }
+        if (request.showPayloadPreview() != null) {
+            settings.setShowPayloadPreview(request.showPayloadPreview());
+        }
+        if (request.blockOnPiiDetected() != null) {
+            settings.setBlockOnPiiDetected(request.blockOnPiiDetected());
+        }
+        if (request.sanitizationMode() != null) {
+            settings.setSanitizationMode(request.sanitizationMode());
+        }
+        if (request.aiResponseStyle() != null) {
+            settings.setAiResponseStyle(request.aiResponseStyle());
+        }
+        if (request.maxResponseLength() != null) {
+            settings.setMaxResponseLength(request.maxResponseLength());
+        }
         return PrivacySettingsDto.from(settingsRepository.save(settings));
     }
 }

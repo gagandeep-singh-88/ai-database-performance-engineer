@@ -24,6 +24,8 @@ server:
     include-stacktrace: never
 
 app:
+  version: ${APP_VERSION:0.1.0}
+  build-version: ${APP_BUILD_VERSION:dev}
   jwt:
     # Min 32 characters. ALWAYS override via env/Secret Manager outside local dev.
     secret: ${JWT_SECRET:dev-only-jwt-secret-change-me-0123456789abcdef}
