@@ -59,6 +59,10 @@ public class MetricsSanitizer {
     }
 
     public MetricsSanitizationResult sanitize(String metricsJson) {
+        return sanitize(metricsJson, new PlaceholderAllocator());
+    }
+
+    public MetricsSanitizationResult sanitize(String metricsJson, PlaceholderAllocator allocator) {
         List<RemovedField> removed = new ArrayList<>();
         Map<PiiType, Integer> findings = new EnumMap<>(PiiType.class);
         if (metricsJson == null || metricsJson.isBlank()) {
@@ -69,10 +73,10 @@ public class MetricsSanitizer {
             root = objectMapper.readTree(metricsJson);
         } catch (JsonProcessingException e) {
             // Not JSON — treat as free text and redact defensively
-            RedactionResult redacted = piiDetector.redact(metricsJson);
+            RedactionResult redacted = piiDetector.redact(metricsJson, Set.of(), allocator);
             return new MetricsSanitizationResult(redacted.text(), removed, redacted.findings());
         }
-        JsonNode sanitized = walk(root, "metrics", removed, findings);
+        JsonNode sanitized = walk(root, "metrics", removed, findings, allocator);
         try {
             return new MetricsSanitizationResult(
                     objectMapper.writeValueAsString(sanitized), removed, findings);
@@ -82,14 +86,14 @@ public class MetricsSanitizer {
     }
 
     private JsonNode walk(JsonNode node, String path, List<RemovedField> removed,
-                          Map<PiiType, Integer> findings) {
+                          Map<PiiType, Integer> findings, PlaceholderAllocator allocator) {
         if (node.isObject()) {
             ObjectNode out = objectMapper.createObjectNode();
             node.fields().forEachRemaining(entry -> {
                 String key = entry.getKey();
                 String childPath = path + "." + key;
                 if (isAllowed(key)) {
-                    out.set(key, walk(entry.getValue(), childPath, removed, findings));
+                    out.set(key, walk(entry.getValue(), childPath, removed, findings, allocator));
                 } else {
                     removed.add(new RemovedField(childPath, "Rejected field",
                             "Not on the performance-metrics allow-list — dropped to avoid leaking business data", 1));
@@ -100,12 +104,12 @@ public class MetricsSanitizer {
         if (node.isArray()) {
             ArrayNode out = objectMapper.createArrayNode();
             for (int i = 0; i < node.size(); i++) {
-                out.add(walk(node.get(i), path + "[" + i + "]", removed, findings));
+                out.add(walk(node.get(i), path + "[" + i + "]", removed, findings, allocator));
             }
             return out;
         }
         if (node.isTextual()) {
-            RedactionResult redacted = piiDetector.redact(node.asText());
+            RedactionResult redacted = piiDetector.redact(node.asText(), Set.of(), allocator);
             redacted.findings().forEach((type, count) -> findings.merge(type, count, Integer::sum));
             return objectMapper.getNodeFactory().textNode(redacted.text());
         }

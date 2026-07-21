@@ -69,7 +69,7 @@ class QueryAnalysisServiceTest {
         when(sanitizationService.enforceForAnalysis(any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> new SanitizedPayload(invocation.getArgument(2),
                         invocation.getArgument(3), invocation.getArgument(4),
-                        List.of(), List.of(), ValidationResult.clean()));
+                        List.of(), List.of(), List.of(), ValidationResult.clean()));
     }
 
     private AiQueryAnalysis sampleAnalysis() {

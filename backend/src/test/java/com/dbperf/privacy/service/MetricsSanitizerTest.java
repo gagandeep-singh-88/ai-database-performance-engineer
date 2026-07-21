@@ -48,7 +48,7 @@ class MetricsSanitizerTest {
         String json = """
                 { "waitEvent": "client backend user@example.com", "locks": 3 }""";
         MetricsSanitizationResult result = sanitizer.sanitize(json);
-        assertThat(result.json()).doesNotContain("user@example.com").contains("<REDACTED>");
+        assertThat(result.json()).doesNotContain("user@example.com").contains("$1");
     }
 
     @Test

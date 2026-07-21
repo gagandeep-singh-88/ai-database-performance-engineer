@@ -60,8 +60,10 @@ class PrivacyIntegrationTest {
                 .andExpect(jsonPath("$.privacyStatus").value("PROTECTED"))
                 .andExpect(jsonPath("$.validation.passed").value(true))
                 .andExpect(jsonPath("$.sanitized.sql").value(
-                        "SELECT * FROM customers WHERE email='<REDACTED>'"))
-                .andExpect(jsonPath("$.findings[0].type").value("EMAIL"));
+                        "SELECT * FROM customers WHERE email='$1'"))
+                .andExpect(jsonPath("$.findings[0].type").value("EMAIL"))
+                .andExpect(jsonPath("$.placeholders[0].placeholder").value("$1"))
+                .andExpect(jsonPath("$.placeholders[0].category").value("Email address"));
 
         assertThat(auditRepository.count()).isGreaterThan(before);
     }

@@ -11,6 +11,12 @@ export interface RemovedField {
   occurrences: number;
 }
 
+export interface PlaceholderMapping {
+  placeholder: string; // e.g. "$1"
+  category: string; // e.g. "Email address"
+  occurrences: number;
+}
+
 export interface ValidationResult {
   passed: boolean;
   aiEnabled: boolean;
@@ -30,26 +36,10 @@ export interface PayloadPreviewResponse {
   original: PayloadSection;
   sanitized: PayloadSection;
   findings: PiiFinding[];
+  placeholders: PlaceholderMapping[];
   removedFields: RemovedField[];
   validation: ValidationResult;
   privacyStatus: PrivacyStatus;
-}
-
-export interface PrivacySettings {
-  sqlSanitizationEnabled: boolean;
-  aiEnabled: boolean;
-  updatedAt: string;
-}
-
-export interface AuditLogItem {
-  id: string;
-  timestamp: string;
-  tenant: string;
-  analysisId: string | null;
-  piiDetected: string[];
-  fieldsRemoved: number;
-  payloadSizeBytes: number;
-  validationResult: string;
 }
 
 export interface PreviewPayload {

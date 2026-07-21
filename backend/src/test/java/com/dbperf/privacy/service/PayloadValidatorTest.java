@@ -17,7 +17,7 @@ class PayloadValidatorTest {
     @Test
     void cleanPayloadPasses() {
         ValidationResult result = validator(true).validate(
-                "SELECT * FROM customers WHERE email = '<REDACTED>'", true);
+                "SELECT * FROM customers WHERE email = '$1'", true);
         assertThat(result.passed()).isTrue();
         assertThat(result.residualFindings()).isEmpty();
     }

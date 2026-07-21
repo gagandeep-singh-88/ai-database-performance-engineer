@@ -1,6 +1,7 @@
 package com.dbperf.privacy.service;
 
 import com.dbperf.config.PrivacyProperties;
+import com.dbperf.privacy.domain.PiiType;
 import com.dbperf.privacy.dto.RedactionResult;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,21 @@ class ExecutionPlanSanitizerTest {
         RedactionResult result = sanitizer.sanitize(
                 "Seq Scan on t (cost=0..1 rows=1 width=4) -- user john@example.com ran this");
         assertThat(result.text()).doesNotContain("john@example.com");
+    }
+
+    @Test
+    void masksPredicateLiteralsOfAnyLengthAndLabelsThemConsistently() {
+        // a single-digit condition value must be masked too (any length), and reported
+        // under the same PREDICATE_LITERAL category the SQL sanitizer uses.
+        RedactionResult result = sanitizer.sanitize(
+                "Bitmap Heap Scan on orders (cost=12.30..456.00 rows=88 width=16)\n"
+                        + "  Recheck Cond: (flag = 7)");
+        assertThat(result.text())
+                .contains("Recheck Cond: (flag = $1)")
+                .contains("rows=88")               // node-line metric preserved
+                .contains("cost=12.30..456.00");   // node-line metric preserved
+        assertThat(result.findings()).containsKey(PiiType.PREDICATE_LITERAL);
+        assertThat(result.findings()).doesNotContainKey(PiiType.LONG_NUMERIC_ID);
     }
 
     @Test

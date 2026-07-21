@@ -16,7 +16,8 @@ import java.util.Map;
  * @param plan           sanitized execution plan (may be null)
  * @param schemaContext  sanitized schema/statistics context (may be null)
  * @param findings       PII categories masked, aggregated across all sections
- * @param removedFields  user-facing explanations for the preview panel
+ * @param placeholders   the "$N → category" legend for the masked values
+ * @param removedFields  non-placeholder removals (comments, dropped metric keys)
  * @param validation     validation outcome for this payload
  */
 public record SanitizedPayload(
@@ -24,6 +25,7 @@ public record SanitizedPayload(
         String plan,
         String schemaContext,
         List<PiiFinding> findings,
+        List<PlaceholderMapping> placeholders,
         List<RemovedField> removedFields,
         ValidationResult validation) {
 

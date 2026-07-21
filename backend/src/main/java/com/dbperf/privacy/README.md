@@ -21,6 +21,21 @@ Query Analyzer / Metrics collectors
      Claude API
 ```
 
+## Placeholders
+
+Masked values are replaced with **numbered placeholders** (`$1`, `$2`, …) in the
+style of Postgres's own `pg_stat_statements` normalization, allocated by
+`PlaceholderAllocator`:
+
+- Numbering is sequential in first-encounter order, shared across a payload's SQL,
+  plan and metrics.
+- **Deduplicated by value:** the same literal always reuses one number (so a
+  repeated condition or self-join stays visible to the AI); different values —
+  regardless of category — get different numbers.
+- The preview returns a `$N → category` legend (e.g. `$1 → Email address`) so the
+  user sees what each placeholder stood for, never the value.
+- SQL comments are **removed entirely** (not placeholdered).
+
 ## Guarantees
 
 - **Never send PII to Claude.** Sanitizers redact; the validator independently
@@ -71,7 +86,7 @@ identifiers, and — in SQL — any quoted string literal.
 | Property                | Default        | Meaning                                        |
 |-------------------------|----------------|------------------------------------------------|
 | `enabled`               | `true`         | Master switch for the pipeline                 |
-| `redaction-token`       | `<REDACTED>`   | Placeholder that replaces masked values        |
+| `redaction-token`       | `<REDACTED>`   | Reserved/legacy — masking now uses `$N` placeholders |
 | `block-on-residual-pii` | `true`         | Block if PII survives sanitization             |
 | `audit-enabled`         | `true`         | Persist audit rows                             |
 

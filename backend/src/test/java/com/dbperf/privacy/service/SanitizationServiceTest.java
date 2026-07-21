@@ -72,9 +72,11 @@ class SanitizationServiceTest {
         SanitizedPayload payload = service.enforceForAnalysis(user, null,
                 "SELECT * FROM customers WHERE email='john@example.com'", null, null);
 
-        assertThat(payload.sql()).isEqualTo("SELECT * FROM customers WHERE email='<REDACTED>'");
+        assertThat(payload.sql()).isEqualTo("SELECT * FROM customers WHERE email='$1'");
         assertThat(payload.validation().passed()).isTrue();
         assertThat(payload.findings()).anyMatch(f -> f.type() == PiiType.EMAIL);
+        assertThat(payload.placeholders()).anyMatch(p -> p.placeholder().equals("$1")
+                && p.category().equals(PiiType.EMAIL.label()));
         verify(auditService).record(eq(user.getId()), eq(user.getEmail()), isNull(),
                 any(), anyInt(), anyLong(), any());
     }

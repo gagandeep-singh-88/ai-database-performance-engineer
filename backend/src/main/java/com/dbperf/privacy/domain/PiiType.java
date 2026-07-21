@@ -22,7 +22,9 @@ public enum PiiType {
     IP_ADDRESS("IP address"),
     CONNECTION_STRING("Database connection string"),
     LONG_NUMERIC_ID("Long numeric identifier"),
-    STRING_LITERAL("Quoted string literal");
+    STRING_LITERAL("Quoted string literal"),
+    PREDICATE_LITERAL("Predicate comparison value"),
+    SQL_COMMENT("SQL comment");
 
     private final String label;
 

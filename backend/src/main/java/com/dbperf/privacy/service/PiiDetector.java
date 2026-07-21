@@ -68,48 +68,47 @@ public class PiiDetector {
 
     private static final Pattern LONG_NUMERIC_ID = Pattern.compile("(?<!\\d)\\d{9,}(?!\\d)");
 
-    private final String token;
-
     public PiiDetector(PrivacyProperties properties) {
-        this.token = properties.redactionToken();
+        // properties retained for DI compatibility; masking uses $N placeholders.
     }
 
-    /**
-     * Redact every known PII/secret category from {@code input}.
-     *
-     * @return sanitized text and the categories masked (with counts)
-     */
+    /** Redact every known PII/secret category from {@code input} with a fresh placeholder set. */
     public RedactionResult redact(String input) {
-        return redact(input, Set.of());
+        return redact(input, Set.of(), new PlaceholderAllocator());
+    }
+
+    public RedactionResult redact(String input, Set<PiiType> exclude) {
+        return redact(input, exclude, new PlaceholderAllocator());
     }
 
     /**
-     * Redact all categories except those in {@code exclude}. Callers that work
-     * on structured metric text (execution plans, stats) exclude the numeric
-     * heuristics ({@link PiiType#PHONE}, {@link PiiType#LONG_NUMERIC_ID}) so
-     * legitimate row/cost figures are preserved.
+     * Redact all categories except those in {@code exclude}, assigning numbered
+     * placeholders from the shared {@code allocator} (so repeated values reuse the
+     * same $N). Callers working on structured metric text (execution plans, stats)
+     * exclude the numeric heuristics ({@link PiiType#PHONE},
+     * {@link PiiType#LONG_NUMERIC_ID}) so legitimate row/cost figures are preserved.
      */
-    public RedactionResult redact(String input, Set<PiiType> exclude) {
+    public RedactionResult redact(String input, Set<PiiType> exclude, PlaceholderAllocator allocator) {
         Map<PiiType, Integer> findings = new EnumMap<>(PiiType.class);
         if (input == null || input.isEmpty()) {
             return new RedactionResult(input, findings);
         }
         String text = input;
-        text = full(PiiType.CONNECTION_STRING, CONNECTION_STRING, text, findings, exclude, m -> true);
-        text = full(PiiType.JWT, JWT, text, findings, exclude, m -> true);
-        text = lastGroup(PiiType.SECRET, SECRET_KV, text, findings, exclude);
-        text = lastGroup(PiiType.BEARER_TOKEN, BEARER_TOKEN, text, findings, exclude);
-        text = full(PiiType.API_KEY, API_KEY, text, findings, exclude, m -> true);
+        text = full(PiiType.CONNECTION_STRING, CONNECTION_STRING, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.JWT, JWT, text, findings, exclude, allocator, m -> true);
+        text = lastGroup(PiiType.SECRET, SECRET_KV, text, findings, exclude, allocator);
+        text = lastGroup(PiiType.BEARER_TOKEN, BEARER_TOKEN, text, findings, exclude, allocator);
+        text = full(PiiType.API_KEY, API_KEY, text, findings, exclude, allocator, m -> true);
         // UUID is highly structured — detect it before the numeric detectors so a
         // 12-digit run inside a UUID isn't mistaken for an Aadhaar/long id.
-        text = full(PiiType.UUID, UUID, text, findings, exclude, m -> true);
-        text = full(PiiType.EMAIL, EMAIL, text, findings, exclude, m -> true);
-        text = full(PiiType.CREDIT_CARD, CREDIT_CARD, text, findings, exclude, m -> luhnValid(m.group()));
-        text = full(PiiType.AADHAAR, AADHAAR, text, findings, exclude, m -> true);
-        text = full(PiiType.PAN, PAN, text, findings, exclude, m -> true);
-        text = full(PiiType.IP_ADDRESS, IP_ADDRESS, text, findings, exclude, m -> true);
-        text = full(PiiType.PHONE, PHONE, text, findings, exclude, m -> digitCountInRange(m.group(), 10, 15));
-        text = full(PiiType.LONG_NUMERIC_ID, LONG_NUMERIC_ID, text, findings, exclude, m -> true);
+        text = full(PiiType.UUID, UUID, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.EMAIL, EMAIL, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.CREDIT_CARD, CREDIT_CARD, text, findings, exclude, allocator, m -> luhnValid(m.group()));
+        text = full(PiiType.AADHAAR, AADHAAR, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.PAN, PAN, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.IP_ADDRESS, IP_ADDRESS, text, findings, exclude, allocator, m -> true);
+        text = full(PiiType.PHONE, PHONE, text, findings, exclude, allocator, m -> digitCountInRange(m.group(), 10, 15));
+        text = full(PiiType.LONG_NUMERIC_ID, LONG_NUMERIC_ID, text, findings, exclude, allocator, m -> true);
         return new RedactionResult(text, findings);
     }
 
@@ -122,8 +121,8 @@ public class PiiDetector {
         return !redact(input).isClean();
     }
 
-    private String full(PiiType type, Pattern pattern, String text,
-                        Map<PiiType, Integer> findings, Set<PiiType> exclude, Predicate<Matcher> accept) {
+    private String full(PiiType type, Pattern pattern, String text, Map<PiiType, Integer> findings,
+                        Set<PiiType> exclude, PlaceholderAllocator allocator, Predicate<Matcher> accept) {
         if (exclude.contains(type)) {
             return text;
         }
@@ -132,7 +131,8 @@ public class PiiDetector {
         int count = 0;
         while (matcher.find()) {
             if (accept.test(matcher)) {
-                matcher.appendReplacement(out, Matcher.quoteReplacement(token));
+                matcher.appendReplacement(out,
+                        Matcher.quoteReplacement(allocator.placeholderFor(matcher.group(), type)));
                 count++;
             } else {
                 matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group()));
@@ -149,8 +149,8 @@ public class PiiDetector {
      * Replace only the last capturing group (the secret value), preserving the
      * key/prefix. Relies on the value being the final group at the match end.
      */
-    private String lastGroup(PiiType type, Pattern pattern, String text,
-                             Map<PiiType, Integer> findings, Set<PiiType> exclude) {
+    private String lastGroup(PiiType type, Pattern pattern, String text, Map<PiiType, Integer> findings,
+                             Set<PiiType> exclude, PlaceholderAllocator allocator) {
         if (exclude.contains(type)) {
             return text;
         }
@@ -160,7 +160,8 @@ public class PiiDetector {
         while (matcher.find()) {
             String full = matcher.group();
             String value = matcher.group(matcher.groupCount());
-            String replacement = full.substring(0, full.length() - value.length()) + token;
+            String replacement = full.substring(0, full.length() - value.length())
+                    + allocator.placeholderFor(value, type);
             matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
             count++;
         }

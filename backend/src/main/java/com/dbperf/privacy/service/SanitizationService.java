@@ -10,6 +10,7 @@ import com.dbperf.privacy.dto.PayloadPreviewRequest;
 import com.dbperf.privacy.dto.PayloadPreviewResponse;
 import com.dbperf.privacy.dto.PayloadSection;
 import com.dbperf.privacy.dto.PiiFinding;
+import com.dbperf.privacy.dto.PlaceholderMapping;
 import com.dbperf.privacy.dto.RedactionResult;
 import com.dbperf.privacy.dto.RemovedField;
 import com.dbperf.privacy.dto.SanitizedPayload;
@@ -92,53 +93,48 @@ public class SanitizationService {
         User user = currentUserService.require();
         PrivacySettings settings = settingsService.resolve(user.getId());
         boolean redact = properties.enabled() && settings.isSqlSanitizationEnabled();
+        PlaceholderAllocator allocator = new PlaceholderAllocator();
 
         List<Map<PiiType, Integer>> findingMaps = new ArrayList<>();
-        List<RemovedField> removed = new ArrayList<>();
+        List<RemovedField> metricsDropped = new ArrayList<>();
 
         String sanitizedSql = request.sql();
-        if (notBlank(request.sql())) {
-            if (redact) {
-                RedactionResult r = sqlSanitizer.sanitize(request.sql());
-                sanitizedSql = r.text();
-                findingMaps.add(r.findings());
-                removed.addAll(describe("SQL", r.findings()));
-            }
+        if (notBlank(request.sql()) && redact) {
+            RedactionResult r = sqlSanitizer.sanitize(request.sql(), allocator);
+            sanitizedSql = r.text();
+            findingMaps.add(r.findings());
         }
 
         String sanitizedPlan = request.executionPlan();
-        if (notBlank(request.executionPlan())) {
-            if (redact) {
-                RedactionResult r = planSanitizer.sanitize(request.executionPlan());
-                sanitizedPlan = r.text();
-                findingMaps.add(r.findings());
-                removed.addAll(describe("Execution plan", r.findings()));
-            }
+        if (notBlank(request.executionPlan()) && redact) {
+            RedactionResult r = planSanitizer.sanitize(request.executionPlan(), allocator);
+            sanitizedPlan = r.text();
+            findingMaps.add(r.findings());
         }
 
         String sanitizedMetrics = request.metricsJson();
-        if (notBlank(request.metricsJson())) {
-            if (redact) {
-                MetricsSanitizationResult r = metricsSanitizer.sanitize(request.metricsJson());
-                sanitizedMetrics = r.json();
-                findingMaps.add(r.findings());
-                removed.addAll(r.removedFields());
-                removed.addAll(describe("metrics", r.findings()));
-            }
+        if (notBlank(request.metricsJson()) && redact) {
+            MetricsSanitizationResult r = metricsSanitizer.sanitize(request.metricsJson(), allocator);
+            sanitizedMetrics = r.json();
+            findingMaps.add(r.findings());
+            metricsDropped.addAll(r.removedFields());
         }
 
         List<PiiFinding> findings = SanitizedPayload.mergeFindings(findingMaps);
+        List<PlaceholderMapping> placeholders = placeholderLegend(allocator);
+        List<RemovedField> removed = nonPlaceholderRemovals(findings, metricsDropped);
+
         String combined = combined(sanitizedSql, sanitizedPlan, sanitizedMetrics);
         ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled());
 
         long size = combined.getBytes(StandardCharsets.UTF_8).length;
-        int fieldsRemoved = findings.stream().mapToInt(PiiFinding::occurrences).sum() + removed.size();
+        int fieldsRemoved = findings.stream().mapToInt(PiiFinding::occurrences).sum();
         auditService.record(user.getId(), user.getEmail(), null, findings, fieldsRemoved, size, validation);
 
         return new PayloadPreviewResponse(
                 new PayloadSection(request.sql(), request.executionPlan(), request.metricsJson()),
                 new PayloadSection(sanitizedSql, sanitizedPlan, sanitizedMetrics),
-                findings, removed, validation, status(validation));
+                findings, placeholders, removed, validation, status(validation));
     }
 
     // ---- shared core ----------------------------------------------------
@@ -146,44 +142,54 @@ public class SanitizationService {
     /** Pure sanitize + validate with no persistence; reused by both entry points. */
     SanitizedPayload sanitize(String sql, String plan, String schemaContext, PrivacySettings settings) {
         boolean redact = properties.enabled() && settings.isSqlSanitizationEnabled();
+        PlaceholderAllocator allocator = new PlaceholderAllocator();
         List<Map<PiiType, Integer>> findingMaps = new ArrayList<>();
-        List<RemovedField> removed = new ArrayList<>();
 
         String outSql = sql;
         if (notBlank(sql) && redact) {
-            RedactionResult r = sqlSanitizer.sanitize(sql);
+            RedactionResult r = sqlSanitizer.sanitize(sql, allocator);
             outSql = r.text();
             findingMaps.add(r.findings());
-            removed.addAll(describe("SQL", r.findings()));
         }
 
         String outPlan = plan;
         if (notBlank(plan) && redact) {
-            RedactionResult r = planSanitizer.sanitize(plan);
+            RedactionResult r = planSanitizer.sanitize(plan, allocator);
             outPlan = r.text();
             findingMaps.add(r.findings());
-            removed.addAll(describe("Execution plan", r.findings()));
         }
 
         String outSchema = schemaContext;
         if (notBlank(schemaContext) && redact) {
             // Schema/statistics context carries row counts — preserve numeric metrics.
-            RedactionResult r = piiDetector.redact(schemaContext, PiiDetector.NUMERIC_HEURISTICS);
+            RedactionResult r = piiDetector.redact(schemaContext, PiiDetector.NUMERIC_HEURISTICS, allocator);
             outSchema = r.text();
             findingMaps.add(r.findings());
-            removed.addAll(describe("Schema context", r.findings()));
         }
 
         List<PiiFinding> findings = SanitizedPayload.mergeFindings(findingMaps);
+        List<PlaceholderMapping> placeholders = placeholderLegend(allocator);
+        List<RemovedField> removed = nonPlaceholderRemovals(findings, List.of());
         String combined = combined(outSql, outPlan, outSchema);
         ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled());
-        return new SanitizedPayload(outSql, outPlan, outSchema, findings, removed, validation);
+        return new SanitizedPayload(outSql, outPlan, outSchema, findings, placeholders, removed, validation);
     }
 
-    private static List<RemovedField> describe(String location, Map<PiiType, Integer> findings) {
+    private static List<PlaceholderMapping> placeholderLegend(PlaceholderAllocator allocator) {
+        return allocator.entries().stream().map(PlaceholderMapping::from).toList();
+    }
+
+    /** Removals that have no placeholder: stripped comments and dropped metric keys. */
+    private static List<RemovedField> nonPlaceholderRemovals(List<PiiFinding> findings,
+                                                             List<RemovedField> metricsDropped) {
         List<RemovedField> out = new ArrayList<>();
-        findings.forEach((type, count) -> out.add(new RemovedField(location, type.label(),
-                "Masked before sending to the AI to protect sensitive data", count)));
+        findings.stream()
+                .filter(f -> f.type() == PiiType.SQL_COMMENT)
+                .findFirst()
+                .ifPresent(f -> out.add(new RemovedField("SQL / plan", "SQL comment",
+                        "Comment removed entirely — comments can carry names or business context",
+                        f.occurrences())));
+        out.addAll(metricsDropped);
         return out;
     }
 
