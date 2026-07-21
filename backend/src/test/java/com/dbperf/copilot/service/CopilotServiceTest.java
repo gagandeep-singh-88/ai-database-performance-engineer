@@ -21,6 +21,7 @@ import com.dbperf.metrics.dto.SnapshotSummaryResponse;
 import com.dbperf.metrics.dto.TableStat;
 import com.dbperf.metrics.repository.MetricSnapshotRepository;
 import com.dbperf.metrics.service.MetricsCollectorService;
+import com.dbperf.privacy.service.SanitizationService;
 import com.dbperf.user.domain.Role;
 import com.dbperf.user.domain.User;
 import com.dbperf.user.service.CurrentUserService;
@@ -67,6 +68,8 @@ class CopilotServiceTest {
     private ChatMessageRepository messageRepository;
     @Mock
     private CurrentUserService currentUserService;
+    @Mock
+    private SanitizationService sanitizationService;
 
     private final UUID userId = UUID.randomUUID();
     private CopilotService service;
@@ -76,10 +79,14 @@ class CopilotServiceTest {
         service = new CopilotService(ai, new CopilotPromptBuilder(), connectionAccess,
                 snapshotRepository, collectorService, new HealthScoreCalculator(),
                 analysisRepository, sessionRepository, messageRepository,
-                currentUserService, new ObjectMapper());
+                currentUserService, sanitizationService, new ObjectMapper());
         lenient().when(currentUserService.require()).thenReturn(
                 User.builder().id(userId).email("j@e.com").passwordHash("h")
                         .fullName("J").role(Role.USER).build());
+        // By default the privacy gate passes the payload through unchanged.
+        lenient().when(sanitizationService.enforceForCopilot(any(), any(), any()))
+                .thenAnswer(invocation -> new SanitizationService.CopilotPayload(
+                        invocation.getArgument(1), invocation.getArgument(2)));
         lenient().when(sessionRepository.save(any(ChatSession.class)))
                 .thenAnswer(invocation -> {
                     ChatSession session = invocation.getArgument(0);
@@ -194,6 +201,42 @@ class CopilotServiceTest {
         assertThat(history)
                 .extracting(AiChatMessage::content)
                 .containsSubsequence("earlier question", "earlier answer", "follow-up");
+    }
+
+    @Test
+    void privacyGateBlocksChatBeforeCallingAiOrPersisting() {
+        when(sanitizationService.enforceForCopilot(any(), any(), any()))
+                .thenThrow(new com.dbperf.common.exception.SensitiveDataException(
+                        "AI is disabled in your privacy settings, so this request was not sent to the AI."));
+
+        assertThatThrownBy(() -> service.chat(new ChatRequest(null, null, "SELECT * FROM customers")))
+                .isInstanceOf(com.dbperf.common.exception.SensitiveDataException.class);
+
+        verify(ai, org.mockito.Mockito.never()).structuredChat(anyString(), anyList(), eq(AiCopilotReply.class));
+        verify(messageRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void sanitizedTextIsSentToAiAndPersistedInsteadOfRawInput() {
+        when(messageRepository.findAllBySessionIdOrderByCreatedAtAsc(any())).thenReturn(List.of());
+        when(sanitizationService.enforceForCopilot(any(), any(), any()))
+                .thenReturn(new SanitizationService.CopilotPayload(
+                        "## Metrics context (sanitized)", "redacted message with $1 in place of the email"));
+
+        service.chat(new ChatRequest(null, null, "my email is john@example.com"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<AiChatMessage>> historyCaptor = ArgumentCaptor.forClass((Class) List.class);
+        verify(ai).structuredChat(anyString(), historyCaptor.capture(), eq(AiCopilotReply.class));
+        assertThat(historyCaptor.getValue()).extracting(AiChatMessage::content)
+                .doesNotContain("john@example.com")
+                .contains("redacted message with $1 in place of the email");
+
+        ArgumentCaptor<ChatMessage> messageCaptor = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(messageRepository, org.mockito.Mockito.times(2)).save(messageCaptor.capture());
+        assertThat(messageCaptor.getAllValues())
+                .extracting(ChatMessage::getContent)
+                .doesNotContain("my email is john@example.com");
     }
 
     @Test

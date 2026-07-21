@@ -123,6 +123,31 @@ class SanitizationServiceTest {
     }
 
     @Test
+    void enforceForCopilotRedactsMessageAndGroundingContext() {
+        settings(true, true);
+        SanitizationService.CopilotPayload safe = service.enforceForCopilot(user,
+                "## Metrics context\n- orders: ~100,000 rows", "my email is john@example.com");
+
+        assertThat(safe.userMessage()).doesNotContain("john@example.com").contains("$1");
+        assertThat(safe.groundingContext()).contains("100,000 rows");
+    }
+
+    @Test
+    void enforceForCopilotBlocksWhenAiDisabled() {
+        settings(true, false);
+        assertThatThrownBy(() -> service.enforceForCopilot(user, "context", "hello"))
+                .isInstanceOf(SensitiveDataException.class);
+    }
+
+    @Test
+    void enforceForCopilotStrictModeBlocksRawPiiInMessage() {
+        settingsWithMode(com.dbperf.privacy.domain.SanitizationMode.STRICT_BLOCK);
+        assertThatThrownBy(() -> service.enforceForCopilot(user, "context",
+                "customer email is john@example.com"))
+                .isInstanceOf(SensitiveDataException.class);
+    }
+
+    @Test
     void previewReturnsProtectedStatusAndMaskedPayload() {
         settings(true, true);
         when(currentUserService.require()).thenReturn(user);

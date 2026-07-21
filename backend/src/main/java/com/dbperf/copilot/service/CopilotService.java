@@ -22,6 +22,8 @@ import com.dbperf.metrics.domain.MetricSnapshot;
 import com.dbperf.metrics.dto.SnapshotDetailResponse;
 import com.dbperf.metrics.repository.MetricSnapshotRepository;
 import com.dbperf.metrics.service.MetricsCollectorService;
+import com.dbperf.privacy.service.SanitizationService;
+import com.dbperf.user.domain.User;
 import com.dbperf.user.service.CurrentUserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -55,18 +57,27 @@ public class CopilotService {
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
     private final CurrentUserService currentUserService;
+    private final SanitizationService sanitizationService;
     private final ObjectMapper objectMapper;
 
     @Transactional
     public ChatResponse chat(ChatRequest request) {
-        UUID userId = currentUserService.require().getId();
+        User user = currentUserService.require();
+        UUID userId = user.getId();
         ChatSession session = resolveSession(request, userId);
 
         // Fresh grounding on every turn so the copilot always sees current metrics
         Grounding grounding = ground(session.getConnectionId(), userId);
 
+        // Privacy gate: redact + validate the grounding context and the user's
+        // message before either reaches the AI or gets persisted — same gate
+        // the Query Analyzer goes through, so the user's AI & Privacy settings
+        // are enforced on every AI entry point, not just one.
+        SanitizationService.CopilotPayload safe = sanitizationService.enforceForCopilot(
+                user, grounding.context(), request.message());
+
         List<AiChatMessage> history = new ArrayList<>();
-        history.add(AiChatMessage.user(grounding.context()));
+        history.add(AiChatMessage.user(safe.groundingContext()));
         history.add(AiChatMessage.assistant(
                 "Understood. I have the metrics context and will ground my answers in it."));
         List<ChatMessage> prior = messageRepository.findAllBySessionIdOrderByCreatedAtAsc(session.getId());
@@ -74,14 +85,14 @@ public class CopilotService {
                 history.add(message.getRole() == ChatMessage.Role.USER
                         ? AiChatMessage.user(message.getContent())
                         : AiChatMessage.assistant(message.getContent())));
-        history.add(AiChatMessage.user(request.message()));
+        history.add(AiChatMessage.user(safe.userMessage()));
 
         AiCopilotReply reply = ai.structuredChat(promptBuilder.systemPrompt(), history, AiCopilotReply.class);
 
         messageRepository.save(ChatMessage.builder()
                 .sessionId(session.getId())
                 .role(ChatMessage.Role.USER)
-                .content(request.message())
+                .content(safe.userMessage())
                 .build());
         ChatMessage assistantMessage = messageRepository.save(ChatMessage.builder()
                 .sessionId(session.getId())

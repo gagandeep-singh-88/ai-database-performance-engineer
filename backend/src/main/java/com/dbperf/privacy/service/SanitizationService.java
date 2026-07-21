@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Orchestrates the Privacy &amp; Sanitization Engine — the mandatory gate
@@ -83,6 +84,60 @@ public class SanitizationService {
             throw new SensitiveDataException(blockMessage(payload.validation()));
         }
         return payload;
+    }
+
+    // ---- AI Copilot integration ------------------------------------------
+
+    /**
+     * Sanitize and validate the AI Copilot's outgoing turn — the metrics
+     * grounding context (built server-side from the user's own collected
+     * data) and their free-form chat message — before every call to the AI
+     * provider, mirroring {@link #enforceForAnalysis}. The grounding context
+     * is redacted with numeric heuristics preserved (it carries real
+     * row/latency figures, like schema context in the analyzer); the chat
+     * message is redacted with the full detector since it's arbitrary
+     * free text a user could paste anything into. Throws
+     * {@link SensitiveDataException} if AI is disabled or sensitive data
+     * survives sanitization — callers must persist and send only the
+     * returned sanitized text, never the raw input.
+     */
+    public CopilotPayload enforceForCopilot(User user, String groundingContext, String userMessage) {
+        PrivacySettings settings = settingsService.resolve(user.getId());
+        boolean redact = properties.enabled() && settings.isSqlSanitizationEnabled();
+        PlaceholderAllocator allocator = new PlaceholderAllocator();
+        List<Map<PiiType, Integer>> findingMaps = new ArrayList<>();
+
+        String outContext = groundingContext;
+        if (notBlank(groundingContext) && redact) {
+            RedactionResult r = piiDetector.redact(groundingContext, PiiDetector.NUMERIC_HEURISTICS, allocator);
+            outContext = r.text();
+            findingMaps.add(r.findings());
+        }
+
+        String outMessage = userMessage;
+        if (notBlank(userMessage) && redact) {
+            RedactionResult r = piiDetector.redact(userMessage, Set.of(), allocator);
+            outMessage = r.text();
+            findingMaps.add(r.findings());
+        }
+
+        List<PiiFinding> findings = SanitizedPayload.mergeFindings(findingMaps);
+        String combined = combined(outContext, outMessage, null);
+        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled(),
+                settings.isPayloadValidationEnabled(), settings.isBlockOnPiiDetected());
+        validation = applyStrictMode(validation, settings, userMessage);
+
+        long size = combined.getBytes(StandardCharsets.UTF_8).length;
+        int fieldsRemoved = findings.stream().mapToInt(PiiFinding::occurrences).sum();
+        auditService.record(user.getId(), user.getEmail(), null, findings, fieldsRemoved, size, validation);
+
+        if (!validation.passed()) {
+            throw new SensitiveDataException(blockMessage(validation));
+        }
+        return new CopilotPayload(outContext, outMessage);
+    }
+
+    public record CopilotPayload(String groundingContext, String userMessage) {
     }
 
     // ---- Privacy page preview -------------------------------------------

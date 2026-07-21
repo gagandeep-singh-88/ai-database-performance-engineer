@@ -390,9 +390,9 @@ export default function QueryAnalyzerPage() {
             </Stack>
 
             {preview && (
-              <Card variant="outlined" sx={{ bgcolor: 'transparent' }}>
-                <CardContent>
-                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+              <Accordion variant="outlined" defaultExpanded sx={{ bgcolor: 'transparent' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
                     <Typography variant="subtitle2">This is exactly what the AI will receive</Typography>
                     <Chip
                       size="small"
@@ -401,9 +401,12 @@ export default function QueryAnalyzerPage() {
                       label={STATUS_META[preview.privacyStatus].label}
                     />
                   </Stack>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Divider sx={{ mb: 2 }} />
                   <SanitizationDetails preview={preview} />
-                </CardContent>
-              </Card>
+                </AccordionDetails>
+              </Accordion>
             )}
 
             {loading && (
