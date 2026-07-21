@@ -24,6 +24,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import DescriptionIcon from '@mui/icons-material/Description';
+import ShieldIcon from '@mui/icons-material/Shield';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import BrandMark from '../components/BrandMark';
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { label: 'Query Analyzer', path: '/app/analyzer', icon: <QueryStatsIcon /> },
   { label: 'AI Copilot', path: '/app/copilot', icon: <SmartToyIcon /> },
   { label: 'Reports', path: '/app/reports', icon: <DescriptionIcon /> },
+  { label: 'Privacy', path: '/app/privacy', icon: <ShieldIcon /> },
   { label: 'Settings', path: '/app/settings', icon: <SettingsIcon /> },
 ];
 

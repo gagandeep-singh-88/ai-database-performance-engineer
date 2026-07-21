@@ -9,6 +9,9 @@ import com.dbperf.analyzer.repository.QueryAnalysisRepository;
 import com.dbperf.common.exception.InvalidRequestException;
 import com.dbperf.connection.service.ConnectionAccess;
 import com.dbperf.connection.service.TargetConnectionFactory;
+import com.dbperf.privacy.dto.SanitizedPayload;
+import com.dbperf.privacy.dto.ValidationResult;
+import com.dbperf.privacy.service.SanitizationService;
 import com.dbperf.secrets.SecretStore;
 import com.dbperf.user.domain.Role;
 import com.dbperf.user.domain.User;
@@ -49,6 +52,8 @@ class QueryAnalysisServiceTest {
     private QueryAnalysisRepository analysisRepository;
     @Mock
     private CurrentUserService currentUserService;
+    @Mock
+    private SanitizationService sanitizationService;
 
     private QueryAnalysisService service;
 
@@ -56,7 +61,15 @@ class QueryAnalysisServiceTest {
     void setUp() {
         service = new QueryAnalysisService(ai, new AnalysisPromptBuilder(), schemaInspector,
                 connectionAccess, connectionFactory, secretStore, analysisRepository,
-                currentUserService, new ObjectMapper());
+                currentUserService, sanitizationService, new ObjectMapper());
+    }
+
+    /** By default the privacy gate passes the payload through unchanged. */
+    private void allowSanitization() {
+        when(sanitizationService.enforceForAnalysis(any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> new SanitizedPayload(invocation.getArgument(2),
+                        invocation.getArgument(3), invocation.getArgument(4),
+                        List.of(), List.of(), ValidationResult.clean()));
     }
 
     private AiQueryAnalysis sampleAnalysis() {
@@ -82,6 +95,7 @@ class QueryAnalysisServiceTest {
 
     @Test
     void analyzesWithoutConnectionAndPersistsResult() {
+        allowSanitization();
         when(ai.analyze(anyString(), anyString())).thenReturn(sampleAnalysis());
         when(ai.model()).thenReturn("claude-opus-4-8");
         when(currentUserService.require()).thenReturn(
@@ -107,6 +121,7 @@ class QueryAnalysisServiceTest {
 
     @Test
     void promptContainsPastedExplainOutput() {
+        allowSanitization();
         when(ai.analyze(anyString(), anyString())).thenReturn(sampleAnalysis());
         when(ai.model()).thenReturn("claude-opus-4-8");
         when(currentUserService.require()).thenReturn(

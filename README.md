@@ -33,6 +33,7 @@ in plain English, and generates actionable optimization reports.
 - [x] **Module 5 — Health Dashboard**: explainable health score, trend charts, slow queries, missing-index candidates, AI recommendations
 - [x] **Module 6 — AI Copilot**: chat grounded in collected metrics — every turn is re-grounded in the latest snapshot + health score, with persisted sessions and suggested follow-ups
 - [x] **Module 7 — Optimization Report**: downloadable PDF — health score, AI-written executive summary, prioritized SQL-ready action plan, top queries, table access patterns, and snapshot trend
+- [x] **Privacy & Sanitization Engine**: mandatory gate before every AI call — detects/redacts PII & secrets in SQL, execution plans and metrics, validates the payload (blocks on residue), audits types-only, and exposes an AI Payload Preview. See [backend privacy README](backend/src/main/java/com/dbperf/privacy/README.md)
 - [ ] **Module 8 — Settings**: allows users to manage their profile, database preferences, AI settings and privacy preferences
 
 ## Local development
