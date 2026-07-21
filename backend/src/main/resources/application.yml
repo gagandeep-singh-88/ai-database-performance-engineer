@@ -50,6 +50,12 @@ app:
     provider: ${SECRETS_PROVIDER:local}
     local-encryption-key: ${LOCAL_ENCRYPTION_KEY:dev-only-encryption-key-0123456789}
     gcp-project-id: ${GCP_PROJECT_ID:}
+  privacy:
+    # Privacy & Sanitization Engine — mandatory gate before any AI call.
+    enabled: ${PRIVACY_ENABLED:true}
+    redaction-token: ${PRIVACY_REDACTION_TOKEN:<REDACTED>}
+    block-on-residual-pii: ${PRIVACY_BLOCK_ON_RESIDUAL_PII:true}
+    audit-enabled: ${PRIVACY_AUDIT_ENABLED:true}
 
 springdoc:
   swagger-ui:

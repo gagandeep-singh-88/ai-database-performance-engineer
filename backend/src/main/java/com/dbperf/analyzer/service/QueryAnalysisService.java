@@ -12,7 +12,10 @@ import com.dbperf.common.exception.ResourceNotFoundException;
 import com.dbperf.connection.domain.DatabaseConnection;
 import com.dbperf.connection.service.ConnectionAccess;
 import com.dbperf.connection.service.TargetConnectionFactory;
+import com.dbperf.privacy.dto.SanitizedPayload;
+import com.dbperf.privacy.service.SanitizationService;
 import com.dbperf.secrets.SecretStore;
+import com.dbperf.user.domain.User;
 import com.dbperf.user.service.CurrentUserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +42,7 @@ public class QueryAnalysisService {
     private final SecretStore secretStore;
     private final QueryAnalysisRepository analysisRepository;
     private final CurrentUserService currentUserService;
+    private final SanitizationService sanitizationService;
     private final ObjectMapper objectMapper;
 
     public QueryAnalysisResponse analyze(AnalyzeRequest request) {
@@ -67,22 +71,28 @@ public class QueryAnalysisService {
             }
         }
 
+        // Privacy gate: redact + validate everything before it can reach the AI.
+        // Only the sanitized text is sent to Claude AND persisted at rest.
+        User user = currentUserService.require();
+        String rawSql = request.hasSql() ? request.sql().strip() : null;
+        SanitizedPayload safe = sanitizationService.enforceForAnalysis(user, null, rawSql, plan, schemaContext);
+
         AiQueryAnalysis analysis = ai.analyze(
                 promptBuilder.systemPrompt(),
-                promptBuilder.userPrompt(request.sql(), plan, schemaContext));
+                promptBuilder.userPrompt(safe.sql(), safe.plan(), safe.schemaContext()));
 
         QueryAnalysis entity = analysisRepository.saveAndFlush(QueryAnalysis.builder()
-                .userId(currentUserService.require().getId())
+                .userId(user.getId())
                 .connectionId(request.connectionId())
-                .sqlText(request.hasSql() ? request.sql().strip() : null)
-                .planText(plan)
+                .sqlText(safe.sql())
+                .planText(safe.plan())
                 .summary(analysis.summary())
                 .resultJson(toJson(analysis))
                 .model(ai.model())
                 .build());
 
         return new QueryAnalysisResponse(entity.getId(), entity.getConnectionId(), entity.getSqlText(),
-                plan, schemaContext, analysis, entity.getModel(), entity.getCreatedAt());
+                safe.plan(), safe.schemaContext(), analysis, entity.getModel(), entity.getCreatedAt());
     }
 
     public List<AnalysisHistoryItem> history(int limit) {

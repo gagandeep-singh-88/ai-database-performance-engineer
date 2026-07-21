@@ -20,6 +20,11 @@ app:
   secrets:
     provider: local
     local-encryption-key: test-encryption-key-0123456789
+  privacy:
+    enabled: true
+    redaction-token: <REDACTED>
+    block-on-residual-pii: true
+    audit-enabled: true
   ai:
     provider: auto
     api-key: ""
