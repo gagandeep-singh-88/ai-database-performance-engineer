@@ -30,7 +30,7 @@ export interface PayloadSection {
   metrics: string | null;
 }
 
-export type PrivacyStatus = 'PROTECTED' | 'BLOCKED' | 'AI_DISABLED';
+export type PrivacyStatus = 'PROTECTED' | 'ALLOWED_WITH_WARNING' | 'BLOCKED' | 'AI_DISABLED';
 
 export interface PayloadPreviewResponse {
   original: PayloadSection;
@@ -47,3 +47,21 @@ export interface PreviewPayload {
   executionPlan: string | null;
   metricsJson: string | null;
 }
+
+export type SanitizationMode = 'AUTOMATIC' | 'WARN_BEFORE_SENDING' | 'STRICT_BLOCK';
+export type AiResponseStyle = 'TECHNICAL' | 'SIMPLE';
+
+export interface PrivacySettingsDto {
+  sqlSanitizationEnabled: boolean;
+  aiEnabled: boolean;
+  payloadValidationEnabled: boolean;
+  showPayloadPreview: boolean;
+  blockOnPiiDetected: boolean;
+  sanitizationMode: SanitizationMode;
+  aiResponseStyle: AiResponseStyle;
+  maxResponseLength: number;
+  updatedAt: string;
+}
+
+/** Partial update — omit a field to leave it unchanged. */
+export type UpdatePrivacySettingsPayload = Partial<Omit<PrivacySettingsDto, 'updatedAt'>>;

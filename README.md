@@ -34,7 +34,7 @@ in plain English, and generates actionable optimization reports.
 - [x] **Module 6 — AI Copilot**: chat grounded in collected metrics — every turn is re-grounded in the latest snapshot + health score, with persisted sessions and suggested follow-ups
 - [x] **Module 7 — Optimization Report**: downloadable PDF — health score, AI-written executive summary, prioritized SQL-ready action plan, top queries, table access patterns, and snapshot trend
 - [x] **Privacy & Sanitization Engine**: mandatory gate before every AI call — detects/redacts PII & secrets in SQL, execution plans and metrics, validates the payload (blocks on residue), audits types-only, and exposes an AI Payload Preview. See [backend privacy README](backend/src/main/java/com/dbperf/privacy/README.md)
-- [ ] **Module 8 — Settings**: allows users to manage their profile, database preferences, AI settings and privacy preferences
+- [x] **Module 8 — Settings**: profile (name/organization/password), per-connection edit & monitoring on/off, AI &amp; Privacy preferences (sanitization mode, payload validation, response style/length), and an About tab with build/runtime info
 
 ## Local development
 
@@ -191,6 +191,8 @@ A GitHub Actions workflow automating this pipeline ships with the final deployme
 | GET    | `/api/v1/connections/{id}`      | bearer | Get one connection                           |
 | POST   | `/api/v1/connections/{id}/test` | bearer | Test stored connection, refresh status       |
 | POST   | `/api/v1/connections/test`      | bearer | Ad-hoc test before saving                    |
+| PUT    | `/api/v1/connections/{id}`      | bearer | Edit connection details (password optional — blank keeps the stored secret) |
+| PATCH  | `/api/v1/connections/{id}/monitoring` | bearer | Enable/disable background monitoring for this connection |
 | DELETE | `/api/v1/connections/{id}`      | bearer | Delete connection + stored secret            |
 
 ## API (Module 3)
@@ -221,5 +223,19 @@ hotspots, slow queries, temp spill), each returned as a visible factor.
 | POST   | `/api/v1/analyzer/analyze`      | bearer | AI analysis of SQL and/or EXPLAIN output. With a `connectionId`, the backend runs EXPLAIN on the target (read-only) and grounds AI with real index definitions + table statistics |
 | GET    | `/api/v1/analyzer/history`      | bearer | Past analyses (kept for the Module 7 report)                                                                                                                                      |
 | GET    | `/api/v1/analyzer/{id}`         | bearer | Full stored analysis                                                                                                                                                              |
+
+## API (Module 8)
+
+| Method | Endpoint                        | Auth   | Description                                                        |
+|--------|----------------------------------|--------|--------------------------------------------------------------------|
+| GET    | `/api/v1/users/me`              | bearer | Current user's profile                                              |
+| PUT    | `/api/v1/users/me`              | bearer | Update full name / organization                                    |
+| PUT    | `/api/v1/users/me/password`     | bearer | Change password (requires the current password)                    |
+| GET    | `/api/v1/settings/about`        | bearer | App name, versions, AI provider, and useful links                  |
+
+`GET`/`PUT /api/v1/privacy/settings` (see the [privacy README](backend/src/main/java/com/dbperf/privacy/README.md))
+now also cover payload validation, PII blocking, sanitization mode (Automatic / Warn Before
+Sending / Strict Block), AI response style, and max response length — all enforced by
+`SanitizationService` before every AI call.
 
 Full interactive docs at `/swagger-ui.html`.

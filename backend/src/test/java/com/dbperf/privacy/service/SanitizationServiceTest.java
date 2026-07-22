@@ -54,7 +54,7 @@ class SanitizationServiceTest {
                 new SqlSanitizer(piiDetector, properties),
                 new ExecutionPlanSanitizer(piiDetector, properties),
                 new MetricsSanitizer(piiDetector, new ObjectMapper()),
-                new PayloadValidator(piiDetector, properties),
+                new PayloadValidator(piiDetector),
                 piiDetector, settingsService, auditService, currentUserService, properties);
     }
 
@@ -63,6 +63,15 @@ class SanitizationServiceTest {
                 .userId(user.getId())
                 .sqlSanitizationEnabled(sqlSanitization)
                 .aiEnabled(aiEnabled)
+                .build());
+    }
+
+    private void settingsWithMode(com.dbperf.privacy.domain.SanitizationMode mode) {
+        when(settingsService.resolve(any())).thenReturn(PrivacySettings.builder()
+                .userId(user.getId())
+                .sqlSanitizationEnabled(true)
+                .aiEnabled(true)
+                .sanitizationMode(mode)
                 .build());
     }
 
@@ -95,6 +104,46 @@ class SanitizationServiceTest {
     void enforceBlocksWhenAiDisabled() {
         settings(true, false);
         assertThatThrownBy(() -> service.enforceForAnalysis(user, null, "SELECT 1", null, null))
+                .isInstanceOf(SensitiveDataException.class);
+    }
+
+    @Test
+    void strictModeBlocksWhenRawSqlContainsPiiEvenThoughItWouldSanitizeCleanly() {
+        settingsWithMode(com.dbperf.privacy.domain.SanitizationMode.STRICT_BLOCK);
+        assertThatThrownBy(() -> service.enforceForAnalysis(user, null,
+                "SELECT * FROM customers WHERE email='john@example.com'", null, null))
+                .isInstanceOf(SensitiveDataException.class);
+    }
+
+    @Test
+    void strictModeAllowsCleanSql() {
+        settingsWithMode(com.dbperf.privacy.domain.SanitizationMode.STRICT_BLOCK);
+        SanitizedPayload payload = service.enforceForAnalysis(user, null, "SELECT id FROM orders", null, null);
+        assertThat(payload.validation().passed()).isTrue();
+    }
+
+    @Test
+    void enforceForCopilotRedactsMessageAndGroundingContext() {
+        settings(true, true);
+        SanitizationService.CopilotPayload safe = service.enforceForCopilot(user,
+                "## Metrics context\n- orders: ~100,000 rows", "my email is john@example.com");
+
+        assertThat(safe.userMessage()).doesNotContain("john@example.com").contains("$1");
+        assertThat(safe.groundingContext()).contains("100,000 rows");
+    }
+
+    @Test
+    void enforceForCopilotBlocksWhenAiDisabled() {
+        settings(true, false);
+        assertThatThrownBy(() -> service.enforceForCopilot(user, "context", "hello"))
+                .isInstanceOf(SensitiveDataException.class);
+    }
+
+    @Test
+    void enforceForCopilotStrictModeBlocksRawPiiInMessage() {
+        settingsWithMode(com.dbperf.privacy.domain.SanitizationMode.STRICT_BLOCK);
+        assertThatThrownBy(() -> service.enforceForCopilot(user, "context",
+                "customer email is john@example.com"))
                 .isInstanceOf(SensitiveDataException.class);
     }
 

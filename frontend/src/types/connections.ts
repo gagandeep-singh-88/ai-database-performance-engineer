@@ -10,12 +10,24 @@ export interface ConnectionResponse {
   username: string;
   sslMode: SslMode;
   status: ConnectionStatus;
+  monitoringEnabled: boolean;
   lastTestedAt: string | null;
   lastError: string | null;
   createdAt: string;
 }
 
 export interface ConnectionPayload {
+  name: string;
+  host: string;
+  port: number;
+  databaseName: string;
+  username: string;
+  password: string;
+  sslMode: SslMode;
+}
+
+/** Password is optional on edit: blank keeps the currently stored secret. */
+export interface UpdateConnectionPayload {
   name: string;
   host: string;
   port: number;

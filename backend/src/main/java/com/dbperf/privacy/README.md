@@ -71,7 +71,7 @@ identifiers, and — in SQL — any quoted string literal.
 |--------|-------------|----------------------------------------------------------------|
 | POST   | `/preview`  | Return the exact sanitized payload + findings + validation     |
 | GET    | `/settings` | Current user's privacy toggles                                 |
-| PUT    | `/settings` | Update `sqlSanitizationEnabled` / `aiEnabled`                  |
+| PUT    | `/settings` | Update privacy toggles, sanitization mode, and AI preferences  |
 | GET    | `/audit`    | Recent sanitization audit records (types + outcomes only)      |
 
 ## Settings semantics
@@ -80,6 +80,20 @@ identifiers, and — in SQL — any quoted string literal.
   still runs, so a payload containing PII is **blocked** rather than sent raw.
 - **`aiEnabled`** — when off, validation fails closed (`AI_DISABLED`) and nothing
   is ever sent to the AI.
+- **`payloadValidationEnabled`** — when off, the post-redaction residual-PII
+  re-scan is skipped entirely (the sanitizer's output is trusted as-is).
+- **`blockOnPiiDetected`** — when validation is enabled and residual PII is
+  found, block the request (`true`, default) or allow it through with the
+  finding still reported (`false`, status `ALLOWED_WITH_WARNING`).
+- **`sanitizationMode`** — `AUTOMATIC` (redact and send, default),
+  `WARN_BEFORE_SENDING` (same enforcement as `AUTOMATIC`; purely an informational
+  flag surfaced in the Settings/preview UI), or `STRICT_BLOCK` (reject the
+  request outright if the **raw** SQL contains any detectable PII, regardless
+  of whether sanitization would otherwise have cleaned it up).
+- **`showPayloadPreview`** — frontend-only display toggle for the Query
+  Analyzer's "preview sanitization" panel; not enforced server-side.
+- **`aiResponseStyle`** (`TECHNICAL` / `SIMPLE`) and **`maxResponseLength`** —
+  AI prompt-shaping preferences surfaced on the Settings page.
 
 ## Configuration (`app.privacy`)
 
@@ -90,7 +104,7 @@ identifiers, and — in SQL — any quoted string literal.
 | `block-on-residual-pii` | `true`         | Block if PII survives sanitization             |
 | `audit-enabled`         | `true`         | Persist audit rows                             |
 
-## Storage (migration `V6__create_privacy.sql`)
+## Storage (migrations `V6__create_privacy.sql`, `V9__extend_privacy_settings.sql`)
 
 - `privacy_settings` — one row per user (toggles).
 - `sanitization_audit` — immutable trail: timestamp, user, tenant, analysis id,

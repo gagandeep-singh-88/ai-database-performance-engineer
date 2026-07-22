@@ -5,6 +5,7 @@ import com.dbperf.common.exception.SensitiveDataException;
 import com.dbperf.config.PrivacyProperties;
 import com.dbperf.privacy.domain.PiiType;
 import com.dbperf.privacy.domain.PrivacySettings;
+import com.dbperf.privacy.domain.SanitizationMode;
 import com.dbperf.privacy.dto.MetricsSanitizationResult;
 import com.dbperf.privacy.dto.PayloadPreviewRequest;
 import com.dbperf.privacy.dto.PayloadPreviewResponse;
@@ -25,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Orchestrates the Privacy &amp; Sanitization Engine — the mandatory gate
@@ -84,6 +86,60 @@ public class SanitizationService {
         return payload;
     }
 
+    // ---- AI Copilot integration ------------------------------------------
+
+    /**
+     * Sanitize and validate the AI Copilot's outgoing turn — the metrics
+     * grounding context (built server-side from the user's own collected
+     * data) and their free-form chat message — before every call to the AI
+     * provider, mirroring {@link #enforceForAnalysis}. The grounding context
+     * is redacted with numeric heuristics preserved (it carries real
+     * row/latency figures, like schema context in the analyzer); the chat
+     * message is redacted with the full detector since it's arbitrary
+     * free text a user could paste anything into. Throws
+     * {@link SensitiveDataException} if AI is disabled or sensitive data
+     * survives sanitization — callers must persist and send only the
+     * returned sanitized text, never the raw input.
+     */
+    public CopilotPayload enforceForCopilot(User user, String groundingContext, String userMessage) {
+        PrivacySettings settings = settingsService.resolve(user.getId());
+        boolean redact = properties.enabled() && settings.isSqlSanitizationEnabled();
+        PlaceholderAllocator allocator = new PlaceholderAllocator();
+        List<Map<PiiType, Integer>> findingMaps = new ArrayList<>();
+
+        String outContext = groundingContext;
+        if (notBlank(groundingContext) && redact) {
+            RedactionResult r = piiDetector.redact(groundingContext, PiiDetector.NUMERIC_HEURISTICS, allocator);
+            outContext = r.text();
+            findingMaps.add(r.findings());
+        }
+
+        String outMessage = userMessage;
+        if (notBlank(userMessage) && redact) {
+            RedactionResult r = piiDetector.redact(userMessage, Set.of(), allocator);
+            outMessage = r.text();
+            findingMaps.add(r.findings());
+        }
+
+        List<PiiFinding> findings = SanitizedPayload.mergeFindings(findingMaps);
+        String combined = combined(outContext, outMessage, null);
+        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled(),
+                settings.isPayloadValidationEnabled(), settings.isBlockOnPiiDetected());
+        validation = applyStrictMode(validation, settings, userMessage);
+
+        long size = combined.getBytes(StandardCharsets.UTF_8).length;
+        int fieldsRemoved = findings.stream().mapToInt(PiiFinding::occurrences).sum();
+        auditService.record(user.getId(), user.getEmail(), null, findings, fieldsRemoved, size, validation);
+
+        if (!validation.passed()) {
+            throw new SensitiveDataException(blockMessage(validation));
+        }
+        return new CopilotPayload(outContext, outMessage);
+    }
+
+    public record CopilotPayload(String groundingContext, String userMessage) {
+    }
+
     // ---- Privacy page preview -------------------------------------------
 
     public PayloadPreviewResponse preview(PayloadPreviewRequest request) {
@@ -125,7 +181,9 @@ public class SanitizationService {
         List<RemovedField> removed = nonPlaceholderRemovals(findings, metricsDropped);
 
         String combined = combined(sanitizedSql, sanitizedPlan, sanitizedMetrics);
-        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled());
+        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled(),
+                settings.isPayloadValidationEnabled(), settings.isBlockOnPiiDetected());
+        validation = applyStrictMode(validation, settings, request.sql());
 
         long size = combined.getBytes(StandardCharsets.UTF_8).length;
         int fieldsRemoved = findings.stream().mapToInt(PiiFinding::occurrences).sum();
@@ -171,8 +229,24 @@ public class SanitizationService {
         List<PlaceholderMapping> placeholders = placeholderLegend(allocator);
         List<RemovedField> removed = nonPlaceholderRemovals(findings, List.of());
         String combined = combined(outSql, outPlan, outSchema);
-        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled());
+        ValidationResult validation = payloadValidator.validate(combined, settings.isAiEnabled(),
+                settings.isPayloadValidationEnabled(), settings.isBlockOnPiiDetected());
+        validation = applyStrictMode(validation, settings, sql);
         return new SanitizedPayload(outSql, outPlan, outSchema, findings, placeholders, removed, validation);
+    }
+
+    /**
+     * Strict Block mode rejects a request outright if the RAW SQL contains any
+     * detectable PII, regardless of whether sanitization would otherwise have
+     * cleaned it up. Only SQL is scanned raw (not plan/schema context), since
+     * their numeric heuristics would false-positive on cost/row estimates.
+     */
+    private ValidationResult applyStrictMode(ValidationResult validation, PrivacySettings settings, String rawSql) {
+        if (validation.aiEnabled() && settings.getSanitizationMode() == SanitizationMode.STRICT_BLOCK
+                && notBlank(rawSql) && piiDetector.containsSensitiveData(rawSql)) {
+            return ValidationResult.blockedByStrictMode();
+        }
+        return validation;
     }
 
     private static List<PlaceholderMapping> placeholderLegend(PlaceholderAllocator allocator) {
@@ -197,6 +271,9 @@ public class SanitizationService {
         if (!validation.aiEnabled()) {
             return "AI is disabled in your privacy settings, so this request was not sent to the AI.";
         }
+        if (validation.residualFindings().isEmpty()) {
+            return validation.message();
+        }
         String types = validation.residualFindings().stream().map(PiiFinding::label).distinct().toList().toString();
         return "Request blocked: sensitive data " + types + " was detected and could not be fully "
                 + "sanitized. Nothing was sent to the AI. Remove the sensitive values and try again.";
@@ -206,7 +283,10 @@ public class SanitizationService {
         if (!validation.aiEnabled()) {
             return "AI_DISABLED";
         }
-        return validation.passed() ? "PROTECTED" : "BLOCKED";
+        if (!validation.passed()) {
+            return "BLOCKED";
+        }
+        return validation.residualFindings().isEmpty() ? "PROTECTED" : "ALLOWED_WITH_WARNING";
     }
 
     private static String combined(String sql, String plan, String extra) {

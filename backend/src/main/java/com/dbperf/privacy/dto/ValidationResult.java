@@ -26,4 +26,21 @@ public record ValidationResult(boolean passed, boolean aiEnabled,
         return new ValidationResult(false, true, residual,
                 "Blocked: sensitive data was still present after sanitization");
     }
+
+    public static ValidationResult validationDisabled() {
+        return new ValidationResult(true, true, List.of(),
+                "Payload validation is disabled in your settings — the residual-PII re-scan was skipped");
+    }
+
+    public static ValidationResult allowedWithResidualPii(List<PiiFinding> residual) {
+        return new ValidationResult(true, true, residual,
+                "Sensitive data was still detected after sanitization, but your settings allow the "
+                        + "request to proceed anyway");
+    }
+
+    public static ValidationResult blockedByStrictMode() {
+        return new ValidationResult(false, true, List.of(),
+                "Blocked: Strict Block sanitization mode rejects any request whose raw input contains "
+                        + "detectable sensitive data");
+    }
 }

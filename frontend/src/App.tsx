@@ -10,7 +10,7 @@ import DatabasesPage from './pages/DatabasesPage';
 import QueryAnalyzerPage from './pages/QueryAnalyzerPage';
 import CopilotPage from './pages/CopilotPage';
 import ReportsPage from './pages/ReportsPage';
-import ComingSoonPage from './pages/ComingSoonPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -29,7 +29,7 @@ export default function App() {
               <Route path="analyzer" element={<QueryAnalyzerPage />} />
               <Route path="copilot" element={<CopilotPage />} />
               <Route path="reports" element={<ReportsPage />} />
-              <Route path="settings" element={<ComingSoonPage title="Settings" module="Module 8" />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Route>
 

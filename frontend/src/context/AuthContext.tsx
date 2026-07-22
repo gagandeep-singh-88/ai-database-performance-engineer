@@ -9,6 +9,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: UserResponse) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -48,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tokenStore.clear();
         setUser(null);
       },
+      updateUser: (updated) => setUser(updated),
     }),
     [user, initializing],
   );

@@ -12,8 +12,10 @@ import com.dbperf.common.exception.ResourceNotFoundException;
 import com.dbperf.connection.domain.DatabaseConnection;
 import com.dbperf.connection.service.ConnectionAccess;
 import com.dbperf.connection.service.TargetConnectionFactory;
+import com.dbperf.privacy.domain.PrivacySettings;
 import com.dbperf.privacy.dto.SanitizedPayload;
 import com.dbperf.privacy.service.SanitizationService;
+import com.dbperf.privacy.service.PrivacySettingsService;
 import com.dbperf.secrets.SecretStore;
 import com.dbperf.user.domain.User;
 import com.dbperf.user.service.CurrentUserService;
@@ -43,6 +45,7 @@ public class QueryAnalysisService {
     private final QueryAnalysisRepository analysisRepository;
     private final CurrentUserService currentUserService;
     private final SanitizationService sanitizationService;
+    private final PrivacySettingsService privacySettingsService;
     private final ObjectMapper objectMapper;
 
     public QueryAnalysisResponse analyze(AnalyzeRequest request) {
@@ -76,10 +79,12 @@ public class QueryAnalysisService {
         User user = currentUserService.require();
         String rawSql = request.hasSql() ? request.sql().strip() : null;
         SanitizedPayload safe = sanitizationService.enforceForAnalysis(user, null, rawSql, plan, schemaContext);
+        PrivacySettings settings = privacySettingsService.resolve(user.getId());
 
         AiQueryAnalysis analysis = ai.analyze(
                 promptBuilder.systemPrompt(),
-                promptBuilder.userPrompt(safe.sql(), safe.plan(), safe.schemaContext()));
+                promptBuilder.userPrompt(safe.sql(), safe.plan(), safe.schemaContext(),
+                        settings.getAiResponseStyle(), settings.getMaxResponseLength()));
 
         QueryAnalysis entity = analysisRepository.saveAndFlush(QueryAnalysis.builder()
                 .userId(user.getId())

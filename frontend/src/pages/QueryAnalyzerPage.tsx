@@ -34,6 +34,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShieldIcon from '@mui/icons-material/Shield';
 import GppGoodIcon from '@mui/icons-material/GppGood';
 import GppBadIcon from '@mui/icons-material/GppBad';
+import GppMaybeIcon from '@mui/icons-material/GppMaybe';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { connectionsApi } from '../api/connections';
 import { analyzerApi } from '../api/analyzer';
@@ -58,8 +59,13 @@ const SEVERITY_COLOR: Record<string, 'error' | 'warning' | 'info' | 'default'> =
   INFO: 'default',
 };
 
-const STATUS_META: Record<PrivacyStatus, { color: 'success' | 'error' | 'default'; label: string; icon: JSX.Element }> = {
+const STATUS_META: Record<PrivacyStatus, { color: 'success' | 'error' | 'default' | 'warning'; label: string; icon: JSX.Element }> = {
   PROTECTED: { color: 'success', label: 'Protected — safe to send to AI', icon: <GppGoodIcon fontSize="small" /> },
+  ALLOWED_WITH_WARNING: {
+    color: 'warning',
+    label: 'Allowed with warning — residual data was permitted by your settings',
+    icon: <GppMaybeIcon fontSize="small" />,
+  },
   BLOCKED: { color: 'error', label: 'Blocked — sensitive data remained', icon: <GppBadIcon fontSize="small" /> },
   AI_DISABLED: { color: 'default', label: 'AI disabled — nothing is sent', icon: <VisibilityOffIcon fontSize="small" /> },
 };
@@ -384,9 +390,9 @@ export default function QueryAnalyzerPage() {
             </Stack>
 
             {preview && (
-              <Card variant="outlined" sx={{ bgcolor: 'transparent' }}>
-                <CardContent>
-                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+              <Accordion variant="outlined" defaultExpanded sx={{ bgcolor: 'transparent' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Stack direction="row" spacing={1.5} alignItems="center">
                     <Typography variant="subtitle2">This is exactly what the AI will receive</Typography>
                     <Chip
                       size="small"
@@ -395,9 +401,12 @@ export default function QueryAnalyzerPage() {
                       label={STATUS_META[preview.privacyStatus].label}
                     />
                   </Stack>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Divider sx={{ mb: 2 }} />
                   <SanitizationDetails preview={preview} />
-                </CardContent>
-              </Card>
+                </AccordionDetails>
+              </Accordion>
             )}
 
             {loading && (

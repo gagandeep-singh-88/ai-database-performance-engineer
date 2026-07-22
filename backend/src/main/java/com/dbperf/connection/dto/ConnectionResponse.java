@@ -14,6 +14,7 @@ public record ConnectionResponse(
         String username,
         String sslMode,
         String status,
+        boolean monitoringEnabled,
         Instant lastTestedAt,
         String lastError,
         Instant createdAt) {
@@ -28,6 +29,7 @@ public record ConnectionResponse(
                 connection.getUsername(),
                 connection.getSslMode().name(),
                 connection.getStatus().name(),
+                connection.isMonitoringEnabled(),
                 connection.getLastTestedAt(),
                 connection.getLastError(),
                 connection.getCreatedAt());
