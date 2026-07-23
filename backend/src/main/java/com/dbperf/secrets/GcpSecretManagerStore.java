@@ -45,8 +45,8 @@ public class GcpSecretManagerStore implements SecretStore {
                             .setAutomatic(Replication.Automatic.newBuilder().build())
                             .build())
                     .build();
-            Secret created = client.createSecret(ProjectName.of(projectId), name, secret);
-            SecretVersion version = client.addSecretVersion(created.getName(), SecretPayload.newBuilder()
+           // Secret created = client.createSecret(ProjectName.of(projectId), name, secret);
+            SecretVersion version = client.addSecretVersion("DEMO_DB_PASSWORD", SecretPayload.newBuilder()
                     .setData(ByteString.copyFromUtf8(value))
                     .build());
             return PREFIX + version.getName();
