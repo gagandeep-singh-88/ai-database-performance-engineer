@@ -23,7 +23,7 @@ export default function BrandMark({ size = 'medium' }: { size?: 'small' | 'mediu
         <BoltIcon sx={{ fontSize: iconPx }} />
       </Box>
       <Typography variant={variant} sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>
-        DBPerf<Box component="span" sx={{ color: 'secondary.main' }}>AI</Box>
+        DBInsight<Box component="span" sx={{ color: 'secondary.main' }}>X</Box>
       </Typography>
     </Box>
   );

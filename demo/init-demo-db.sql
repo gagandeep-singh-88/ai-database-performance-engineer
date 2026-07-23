@@ -1,5 +1,5 @@
 -- ============================================================
--- DBPerfAI demo target database: "shopdemo"
+-- DBInsightX demo target database: "shopdemo"
 -- A realistic e-commerce schema with DELIBERATE performance
 -- problems for the live demo:
 --   * no index on orders.customer_id      -> seq scans on joins
@@ -10,7 +10,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- Read-only monitoring user for DBPerfAI (pg_monitor grants access to
+-- Read-only monitoring user for DBInsightX (pg_monitor grants access to
 -- pg_stat_statements, pg_stat_activity etc. without table write rights)
 CREATE USER dbperf_monitor WITH PASSWORD 'monitor123';
 GRANT pg_monitor TO dbperf_monitor;

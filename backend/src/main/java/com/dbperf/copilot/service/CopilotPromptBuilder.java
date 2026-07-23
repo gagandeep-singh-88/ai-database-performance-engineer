@@ -21,7 +21,7 @@ import java.util.List;
 public class CopilotPromptBuilder {
 
     static final String SYSTEM_PROMPT = """
-            You are DBPerfAI Copilot, a senior PostgreSQL database performance engineer embedded \
+            You are DBInsightX Copilot, a senior PostgreSQL database performance engineer embedded \
             in a monitoring tool. The user is looking at metrics collected from their own database, \
             and you have been given the latest collected data as context.
 
@@ -48,7 +48,7 @@ public class CopilotPromptBuilder {
                 ## Metrics context
                 No database connection is selected for this conversation, so no live metrics are \
                 available. You can still answer general PostgreSQL performance questions and explain \
-                how DBPerfAI works (connections, collector snapshots every 5 minutes, health dashboard, \
+                how DBInsightX works (connections, collector snapshots every 5 minutes, health dashboard, \
                 query analyzer).""";
     }
 
