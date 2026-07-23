@@ -11,7 +11,7 @@ class AboutServiceTest {
 
     private AboutService service(AiProperties aiProperties) {
         AboutService service = new AboutService(aiProperties);
-        ReflectionTestUtils.setField(service, "appName", "dbperf-backend");
+        ReflectionTestUtils.setField(service, "appName", "DBInsightX-backend");
         ReflectionTestUtils.setField(service, "appVersion", "0.1.0");
         ReflectionTestUtils.setField(service, "buildVersion", "test-build");
         return service;
@@ -24,7 +24,7 @@ class AboutServiceTest {
 
         AboutResponse response = service(properties).about();
 
-        assertThat(response.appName()).isEqualTo("dbperf-backend");
+        assertThat(response.appName()).isEqualTo("DBInsightX-backend");
         assertThat(response.appVersion()).isEqualTo("0.1.0");
         assertThat(response.buildVersion()).isEqualTo("test-build");
         assertThat(response.aiProvider()).isEqualTo("Claude (Anthropic)");
