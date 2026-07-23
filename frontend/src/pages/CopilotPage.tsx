@@ -192,7 +192,7 @@ export default function CopilotPage() {
             </Avatar>
             <Typography variant="h6">Ask me anything about your database</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460 }}>
-              I answer with the metrics DBPerfAI has collected — health score, slow queries, locks, table access
+              I answer with the metrics DBInsightX has collected — health score, slow queries, locks, table access
               patterns — not generic advice.
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="center">

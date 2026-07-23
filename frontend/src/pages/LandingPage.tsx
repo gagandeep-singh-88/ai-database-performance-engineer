@@ -90,7 +90,7 @@ export default function LandingPage() {
           </Box>
         </Typography>
         <Typography variant="h6" color="text.secondary" sx={{ mt: 3, maxWidth: 680, mx: 'auto', fontWeight: 400 }}>
-          DBPerfAI connects to your PostgreSQL database, analyzes queries and execution plans, and explains
+          DBInsightX connects to your PostgreSQL database, analyzes queries and execution plans, and explains
           performance problems in plain English — like having a senior DBA on call, 24/7.
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" sx={{ mt: 5 }}>
@@ -125,7 +125,7 @@ export default function LandingPage() {
 
       <Box component="footer" sx={{ borderTop: 1, borderColor: 'divider', py: 4, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          DBPerfAI — AI Database Performance Engineer · Built on Google Cloud
+          DBInsightX — AI Database Performance Engineer · Built on Google Cloud
         </Typography>
       </Box>
     </Box>

@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
                 version = "v1",
                 description = "AI-powered PostgreSQL performance assistant: metrics collection, "
                         + "query analysis, AI copilot and optimization reports.",
-                contact = @Contact(name = "DBPerf Team")))
+                contact = @Contact(name = "DBInsightX Team")))
 @SecurityScheme(
         name = "bearerAuth",
         type = SecuritySchemeType.HTTP,

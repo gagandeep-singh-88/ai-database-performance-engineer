@@ -247,7 +247,7 @@ export default function DatabasesPage() {
           <DialogTitle>Add PostgreSQL database</DialogTitle>
           <DialogContent>
             <Alert icon={<ShieldIcon />} severity="info" variant="outlined" sx={{ mb: 2.5, mt: 0.5 }}>
-              DBPerfAI connects <strong>read-only</strong>. Credentials are stored in Google Secret
+              DBInsightX connects <strong>read-only</strong>. Credentials are stored in Google Secret
               Manager (or encrypted locally in dev) — never in our database. Tip: use a dedicated
               monitoring user with the <code>pg_monitor</code> role.
             </Alert>
